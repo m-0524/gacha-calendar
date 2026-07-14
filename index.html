@@ -231,9 +231,8 @@
     <div class="label" id="monthLabel"></div>
     <button id="nextMonth">▶</button>
   </div>
-  <div style="display:flex;gap:8px;">
+  <div>
     <button class="btn btn-outline" id="todayBtn">今日</button>
-    <button class="btn btn-outline" id="refreshBtn" title="ソースに登録されている最新の取込データに更新します（自分で追加・編集した商品はそのまま残ります）">🔄 最新データを再取得</button>
   </div>
 </div>
 
@@ -411,9 +410,7 @@ function buildSanrioData(){
     imageUrl: x.img,
     link: src,
     memo: `全${x.kinds}種／2026年7月${x.week}週目より順次発売予定（正確な日付は要確認）`,
-    wishlist: false,
-    seedSource: 'sanrio-v1',
-    sourceId: 'sanrio:' + x.img.match(/item(\d+)/)[1]
+    wishlist: false
   }));
 }
 function seedSanrioIfNeeded(){
@@ -462,9 +459,7 @@ function buildTakaratomyData(){
     imageUrl: imgBase + x.img,
     link: src,
     memo: `発売時期表記のみ（${x.month.replace('-','年')}月・日付未定）`,
-    wishlist: false,
-    seedSource: 'takaratomy-v1',
-    sourceId: 'takaratomy:' + x.img.replace('_s.jpg','')
+    wishlist: false
   }));
 }
 function seedTakaratomyIfNeeded(){
@@ -472,71 +467,6 @@ function seedTakaratomyIfNeeded(){
   const items = loadItems();
   saveItems(items.concat(buildTakaratomyData()));
   localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
-}
-
-function allSeedBuilders(){
-  return [].concat(buildSanrioData(), buildTakaratomyData());
-}
-
-// sourceId（安定ID）と maker::name の両方をキーとして持たせ、
-// sourceIdを持たない旧バージョンのデータとも突き合わせられるようにする
-function matchKeys(it){
-  return it.sourceId ? [it.sourceId, `${it.maker}::${it.name}`] : [`${it.maker}::${it.name}`];
-}
-function anyKeyIn(it, keySet){ return matchKeys(it).some(k => keySet.has(k)); }
-function addKeys(it, keySet){ matchKeys(it).forEach(k => keySet.add(k)); }
-
-// ユーザーが「削除」した取込データを再取得時に復活させないための除外リスト
-const EXCLUDED_KEY = 'gacha_bandai_excluded_v1';
-function loadExcluded(){
-  try{ return new Set(JSON.parse(localStorage.getItem(EXCLUDED_KEY) || '[]')); }
-  catch(e){ return new Set(); }
-}
-function saveExcluded(set){
-  localStorage.setItem(EXCLUDED_KEY, JSON.stringify([...set]));
-}
-function markExcluded(it){
-  const excluded = loadExcluded();
-  addKeys(it, excluded);
-  saveExcluded(excluded);
-}
-
-function refreshLatestData(){
-  const ok = confirm(
-    '最新の取込データ（サンリオ・タカラトミーアーツ分）に更新します。\n\n' +
-    '・自分で追加した商品や、編集した商品はそのまま残ります\n' +
-    '・自分で削除した商品は復活しません\n' +
-    '・編集していない取込データは最新の内容に置き換わります\n' +
-    '・古いサンプルデータは削除されます\n\n' +
-    'よろしいですか？'
-  );
-  if(!ok) return;
-
-  const excluded = loadExcluded();
-  const fresh = allSeedBuilders().filter(it => !anyKeyIn(it, excluded));
-  const freshKeys = new Set();
-  fresh.forEach(it => addKeys(it, freshKeys));
-
-  let current = loadItems();
-  current = current.filter(it => !/^ガシャポン サンプル/.test(it.name));
-  current = current.filter(it => {
-    const isKnownSeed = it.seedSource || anyKeyIn(it, freshKeys) || anyKeyIn(it, excluded);
-    return !(isKnownSeed && !it.userEdited);
-  });
-
-  const remainingKeys = new Set();
-  current.forEach(it => addKeys(it, remainingKeys));
-  const toAdd = fresh.filter(it => !anyKeyIn(it, remainingKeys));
-
-  items = current.concat(toAdd);
-  saveItems(items);
-  localStorage.setItem(SEED_KEY, '1');
-  localStorage.setItem(SEED_KEY_SANRIO_V1, '1');
-  localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
-
-  renderCalendar();
-  renderPanel();
-  alert('最新データに更新しました。');
 }
 
 let items = [];
@@ -832,7 +762,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
   if(editingId){
     const idx = items.findIndex(x => x.id === editingId);
-    items[idx] = {...items[idx], ...data, userEdited: true};
+    items[idx] = {...items[idx], ...data};
   } else {
     items.push({id: crypto.randomUUID(), ...data});
   }
@@ -867,7 +797,6 @@ document.getElementById('todayBtn').addEventListener('click', () => {
   renderCalendar();
   renderPanel();
 });
-document.getElementById('refreshBtn').addEventListener('click', refreshLatestData);
 
 init();
 </script>
