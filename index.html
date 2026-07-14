@@ -231,8 +231,9 @@
     <div class="label" id="monthLabel"></div>
     <button id="nextMonth">▶</button>
   </div>
-  <div>
+  <div style="display:flex;gap:8px;">
     <button class="btn btn-outline" id="todayBtn">今日</button>
+    <button class="btn btn-outline" id="refreshBtn" title="ソースに登録されている最新の取込データに更新します（自分で追加・編集した商品はそのまま残ります）">🔄 最新データを再取得</button>
   </div>
 </div>
 
@@ -376,49 +377,8 @@ function saveItems(items){
 
 function seedIfNeeded(){
   if(localStorage.getItem(SEED_KEY)) return;
-  const today = new Date();
-  const y = today.getFullYear(), m = today.getMonth();
-  const d = (day) => new Date(y, m, day).toISOString().slice(0,10);
-  const sample = [
-    {
-      id: crypto.randomUUID(),
-      name: 'ガシャポン サンプルフィギュア A',
-      series: 'サンプルコレクション Vol.1',
-      maker: 'bandai',
-      releaseDate: d(5),
-      price: 400,
-      imageUrl: PLACEHOLDER_IMG,
-      link: '',
-      memo: '全6種（サンプルデータ・要編集）',
-      wishlist: false
-    },
-    {
-      id: crypto.randomUUID(),
-      name: 'ガシャポン サンプルマスコット B',
-      series: 'サンプルマスコットシリーズ',
-      maker: 'bandai',
-      releaseDate: d(12),
-      price: 300,
-      imageUrl: PLACEHOLDER_IMG,
-      link: '',
-      memo: '全8種+シークレット（サンプルデータ）',
-      wishlist: true
-    },
-    {
-      id: crypto.randomUUID(),
-      name: 'ガシャポン サンプルミニチュア C',
-      series: 'サンプルミニチュアコレクション',
-      maker: 'bandai',
-      releaseDate: d(20),
-      price: 500,
-      imageUrl: PLACEHOLDER_IMG,
-      link: '',
-      memo: 'コンプ価格 約3,000円（サンプルデータ）',
-      wishlist: false
-    }
-  ];
   const items = loadItems();
-  saveItems(items.concat(sample));
+  saveItems(items);
   localStorage.setItem(SEED_KEY, '1');
 }
 
@@ -427,15 +387,10 @@ function seedIfNeeded(){
 // 注意: サイト上の発売日表記は「N週目より順次発売予定」の週単位のみで正確な日付は不明。
 //       1週目→1日, 2週目→8日, 3週目→15日, 4週目→22日, 5週目→29日 として仮の日付を割り当てている（要確認）。
 const SEED_KEY_SANRIO_V1 = 'gacha_bandai_seeded_sanrio_v1';
-function seedSanrioIfNeeded(){
-  if(localStorage.getItem(SEED_KEY_SANRIO_V1)) return;
-
-  const sampleNames = ['ガシャポン サンプルフィギュア A','ガシャポン サンプルマスコット B','ガシャポン サンプルミニチュア C'];
-  let items = loadItems().filter(it => !sampleNames.includes(it.name));
-
+function buildSanrioData(){
   const src = 'https://gashapon.jp/sanrio-characters/';
   const weekDate = (w) => `2026-07-${String((w-1)*7+1).padStart(2,'0')}`;
-  const real = [
+  return [
     { name:'カラともマスコット', week:5, price:400, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item090/img_dp.jpg' },
     { name:'ミニ貯金箱 夢みるエンジェルver.', week:4, price:500, kinds:3, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item085/img_dp.jpg' },
     { name:'ぱんだっこフィギュア', week:4, price:300, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item094/img_dp.jpg' },
@@ -456,10 +411,18 @@ function seedSanrioIfNeeded(){
     imageUrl: x.img,
     link: src,
     memo: `全${x.kinds}種／2026年7月${x.week}週目より順次発売予定（正確な日付は要確認）`,
-    wishlist: false
+    wishlist: false,
+    seedSource: 'sanrio-v1',
+    sourceId: 'sanrio:' + x.img.match(/item(\d+)/)[1]
   }));
+}
+function seedSanrioIfNeeded(){
+  if(localStorage.getItem(SEED_KEY_SANRIO_V1)) return;
 
-  saveItems(items.concat(real));
+  const sampleNames = ['ガシャポン サンプルフィギュア A','ガシャポン サンプルマスコット B','ガシャポン サンプルミニチュア C'];
+  let items = loadItems().filter(it => !sampleNames.includes(it.name));
+
+  saveItems(items.concat(buildSanrioData()));
   localStorage.setItem(SEED_KEY_SANRIO_V1, '1');
 }
 
@@ -472,12 +435,10 @@ function seedSanrioIfNeeded(){
 //       商品個別ページのリンクは取得できなかったため、一覧ページURLを設定している。
 //       2026-07-14時点で直近〜未来分（2026年7月・8月分）のみ取り込み。
 const SEED_KEY_TAKARATOMY_V1 = 'gacha_bandai_seeded_takaratomy_v1';
-function seedTakaratomyIfNeeded(){
-  if(localStorage.getItem(SEED_KEY_TAKARATOMY_V1)) return;
-
+function buildTakaratomyData(){
   const src = 'https://www.takaratomy-arts.co.jp/specials/sanrio/';
   const imgBase = 'https://www.takaratomy-arts.co.jp/upfiles/products/';
-  const raw = [
+  return [
     { name:'おねがいアイプリ × サンリオキャラクターズ きらきらオーロラ アクリルスタンド', price:440, month:'2026-08', img:'Y111112_s.jpg' },
     { name:'サンリオキャラクターズ ツインチャーム おばけごっこ', price:429, month:'2026-08', img:'Y111068_s.jpg' },
     { name:'サンリオキャラクターズ しょくぱんず', price:300, month:'2026-07', img:'Y905452_s.jpg' },
@@ -506,12 +467,62 @@ function seedTakaratomyIfNeeded(){
     imageUrl: imgBase + x.img,
     link: src,
     memo: `発売時期表記のみ（${x.month.replace('-','年')}月・日付未定）`,
-    wishlist: false
+    wishlist: false,
+    seedSource: 'takaratomy-v1',
+    sourceId: 'takaratomy:' + x.img.replace('_s.jpg','')
   }));
-
+}
+function seedTakaratomyIfNeeded(){
+  if(localStorage.getItem(SEED_KEY_TAKARATOMY_V1)) return;
   const items = loadItems();
-  saveItems(items.concat(raw));
+  saveItems(items.concat(buildTakaratomyData()));
   localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
+}
+
+function allSeedBuilders(){
+  return [].concat(buildSanrioData(), buildTakaratomyData());
+}
+
+function refreshLatestData(){
+  const ok = confirm(
+    '最新の取込データ（サンリオ・タカラトミーアーツ分）に更新します。\n\n' +
+    '・自分で追加した商品や、編集した商品はそのまま残ります\n' +
+    '・編集していない取込データは最新の内容に置き換わります\n' +
+    '・古いサンプルデータは削除されます\n\n' +
+    'よろしいですか？'
+  );
+  if(!ok) return;
+
+  // sourceId（安定ID）と maker::name の両方をキーとして持たせ、
+  // sourceIdを持たない旧バージョンのデータとも突き合わせられるようにする
+  const matchKeys = (it) => it.sourceId ? [it.sourceId, `${it.maker}::${it.name}`] : [`${it.maker}::${it.name}`];
+  const anyKeyIn = (it, keySet) => matchKeys(it).some(k => keySet.has(k));
+  const addKeys = (it, keySet) => matchKeys(it).forEach(k => keySet.add(k));
+
+  const fresh = allSeedBuilders();
+  const freshKeys = new Set();
+  fresh.forEach(it => addKeys(it, freshKeys));
+
+  let current = loadItems();
+  current = current.filter(it => !/^ガシャポン サンプル/.test(it.name));
+  current = current.filter(it => {
+    const isKnownSeed = it.seedSource || anyKeyIn(it, freshKeys);
+    return !(isKnownSeed && !it.userEdited);
+  });
+
+  const remainingKeys = new Set();
+  current.forEach(it => addKeys(it, remainingKeys));
+  const toAdd = fresh.filter(it => !anyKeyIn(it, remainingKeys));
+
+  items = current.concat(toAdd);
+  saveItems(items);
+  localStorage.setItem(SEED_KEY, '1');
+  localStorage.setItem(SEED_KEY_SANRIO_V1, '1');
+  localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
+
+  renderCalendar();
+  renderPanel();
+  alert('最新データに更新しました。');
 }
 
 let items = [];
@@ -807,7 +818,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
   if(editingId){
     const idx = items.findIndex(x => x.id === editingId);
-    items[idx] = {...items[idx], ...data};
+    items[idx] = {...items[idx], ...data, userEdited: true};
   } else {
     items.push({id: crypto.randomUUID(), ...data});
   }
@@ -842,6 +853,7 @@ document.getElementById('todayBtn').addEventListener('click', () => {
   renderCalendar();
   renderPanel();
 });
+document.getElementById('refreshBtn').addEventListener('click', refreshLatestData);
 
 init();
 </script>
