@@ -231,8 +231,11 @@
     <div class="label" id="monthLabel"></div>
     <button id="nextMonth">▶</button>
   </div>
-  <div>
+  <div style="display:flex;gap:8px;">
     <button class="btn btn-outline" id="todayBtn">今日</button>
+    <button class="btn btn-outline" id="exportBtn" title="今のデータをファイルに書き出します">⬇️ エクスポート</button>
+    <button class="btn btn-outline" id="importBtn" title="書き出したファイルを読み込んで、今のデータを置き換えます">⬆️ インポート</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
   </div>
 </div>
 
@@ -341,8 +344,7 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'gacha_bandai_items_v1';
-const SEED_KEY = 'gacha_bandai_seeded_v1';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyvQOtZb-135oFI7LKId41_b-l645SYl4eMDt6GGxycldGCBFGxZGOjtp7_rSJIV-mSfg/exec';
 
 // プレースホルダー画像（カプセルトイのシンプルなSVGアイコン）。実データ追加時に画像URLで上書きしてください。
 const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
@@ -366,107 +368,24 @@ const MAKERS = {
 };
 function makerInfo(key){ return MAKERS[key] || MAKERS.other; }
 
-function loadItems(){
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : [];
+async function loadItems(){
+  const res = await fetch(API_URL);
+  if(!res.ok) throw new Error('load failed');
+  return await res.json();
 }
-function saveItems(items){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+async function saveItems(itemsToSave){
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(itemsToSave)
+  });
+  if(!res.ok) throw new Error('save failed');
 }
-
-function seedIfNeeded(){
-  if(localStorage.getItem(SEED_KEY)) return;
-  const items = loadItems();
-  saveItems(items);
-  localStorage.setItem(SEED_KEY, '1');
-}
-
-// gashapon.jp「サンリオキャラクターズ」ページより2026年7月掲載分を取り込み
-// 出典: https://gashapon.jp/sanrio-characters/
-// 注意: サイト上の発売日表記は「N週目より順次発売予定」の週単位のみで正確な日付は不明。
-//       1週目→1日, 2週目→8日, 3週目→15日, 4週目→22日, 5週目→29日 として仮の日付を割り当てている（要確認）。
-const SEED_KEY_SANRIO_V1 = 'gacha_bandai_seeded_sanrio_v1';
-function buildSanrioData(){
-  const src = 'https://gashapon.jp/sanrio-characters/';
-  const weekDate = (w) => `2026-07-${String((w-1)*7+1).padStart(2,'0')}`;
-  return [
-    { name:'カラともマスコット', week:5, price:400, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item090/img_dp.jpg' },
-    { name:'ミニ貯金箱 夢みるエンジェルver.', week:4, price:500, kinds:3, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item085/img_dp.jpg' },
-    { name:'ぱんだっこフィギュア', week:4, price:300, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item094/img_dp.jpg' },
-    { name:'フロッキーマスコットスイング～かわいいだけじゃない～', week:4, price:300, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item093/img_dp.jpg' },
-    { name:'ななほしカラフルマルチチャーム', week:4, price:300, kinds:7, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item098/img_dp.jpg' },
-    { name:'きらきらアソートコレクション', week:3, price:400, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item096/img_dp.jpg' },
-    { name:'CAPSULE FAN サンリオキャラクターズ2', week:3, price:500, kinds:4, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item095/img_dp.jpg' },
-    { name:'シュガーバニーズ ふわふわめじるしアクセサリー', week:2, price:300, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item097/img_dp.jpg' },
-    { name:'ぷっくりクリアバッグ', week:2, price:400, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item091/img_dp.jpg' },
-    { name:'豆ガシャ本 サンリオキャラクターズ×朝日文庫', week:1, price:500, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item092/img_dp.jpg' }
-  ].map(x => ({
-    id: crypto.randomUUID(),
-    name: x.name,
-    series: 'サンリオキャラクターズ',
-    maker: 'bandai',
-    releaseDate: weekDate(x.week),
-    price: x.price,
-    imageUrl: x.img,
-    link: src,
-    memo: `全${x.kinds}種／2026年7月${x.week}週目より順次発売予定（正確な日付は要確認）`,
-    wishlist: false
-  }));
-}
-function seedSanrioIfNeeded(){
-  if(localStorage.getItem(SEED_KEY_SANRIO_V1)) return;
-
-  const sampleNames = ['ガシャポン サンプルフィギュア A','ガシャポン サンプルマスコット B','ガシャポン サンプルミニチュア C'];
-  let items = loadItems().filter(it => !sampleNames.includes(it.name));
-
-  saveItems(items.concat(buildSanrioData()));
-  localStorage.setItem(SEED_KEY_SANRIO_V1, '1');
-}
-
-// takaratomy-arts.co.jp「サンリオキャラクターズ」スペシャルサイトより取り込み
-// 出典: https://www.takaratomy-arts.co.jp/specials/sanrio/
-// 注意: サイト上の発売日表記は「発売時期：2026年◯月」という月単位のみで日付は不明。
-//       releaseDateはnull、releaseMonthに'YYYY-MM'を設定し「発売日未定」枠に表示。
-//       日付が判明したら編集モーダルの「発売日未定」チェックを外して発売日を入力すると
-//       カレンダーの該当セルに自動的に反映される。
-//       商品個別ページのリンクは取得できなかったため、一覧ページURLを設定している。
-//       2026-07-14時点で直近〜未来分（2026年7月・8月分）のみ取り込み。
-const SEED_KEY_TAKARATOMY_V1 = 'gacha_bandai_seeded_takaratomy_v1';
-function buildTakaratomyData(){
-  const src = 'https://www.takaratomy-arts.co.jp/specials/sanrio/';
-  const imgBase = 'https://www.takaratomy-arts.co.jp/upfiles/products/';
-  return [
-    { name:'おねがいアイプリ × サンリオキャラクターズ きらきらオーロラ アクリルスタンド', price:440, month:'2026-08', img:'Y111112_s.jpg' },
-    { name:'サンリオキャラクターズ ツインチャーム おばけごっこ', price:429, month:'2026-08', img:'Y111068_s.jpg' },
-    { name:'サンリオキャラクターズ しょくぱんず', price:300, month:'2026-07', img:'Y905452_s.jpg' },
-    { name:'サンリオキャラクターズ もこもこパンダフロッキーマスコット', price:400, month:'2026-07', img:'Y903649_s.jpg' },
-    { name:'サンリオキャラクターズ くるくるヘアカーラーフィギュア', price:300, month:'2026-07', img:'Y905940_s.jpg' },
-    { name:'おねがいアイプリ アクリルカードキーホルダー サンリオキャラクターズ モデル', price:0, month:'2026-07', img:'Y187490_s.jpg' },
-    { name:'おねがいアイプリ でふぉめぬいぐるみマスコット サンリオキャラクターズ モデル', price:0, month:'2026-07', img:'Y187483_s.jpg' },
-    { name:'サンリオキャラクターズ バレエリボンフィギュア2', price:300, month:'2026-07', img:'Y902116_s.jpg' },
-    { name:'サンリオキャラクターズ きらきらこんぺいとうチャーム', price:300, month:'2026-07', img:'Y902970_s.jpg' },
-    { name:'サンリオキャラクターズ ぬいぐるみといっしょフィギュア2', price:300, month:'2026-07', img:'Y902963_s.jpg' },
-    { name:'サンリオキャラクターズ きゃらくたぶるステッカーズ Vol.7', price:198, month:'2026-07', img:'Y111167_s.jpg' },
-    { name:'サンリオキャラクターズ きゃらラバ！ ブレスレット にじほしキャンディ', price:418, month:'2026-07', img:'Y111051_s.jpg' }
-  ].map(x => ({
-    id: crypto.randomUUID(),
-    name: x.name,
-    series: 'サンリオキャラクターズ',
-    maker: 'takaratomy',
-    releaseDate: null,
-    releaseMonth: x.month,
-    price: x.price,
-    imageUrl: imgBase + x.img,
-    link: src,
-    memo: `発売時期表記のみ（${x.month.replace('-','年')}月・日付未定）`,
-    wishlist: false
-  }));
-}
-function seedTakaratomyIfNeeded(){
-  if(localStorage.getItem(SEED_KEY_TAKARATOMY_V1)) return;
-  const items = loadItems();
-  saveItems(items.concat(buildTakaratomyData()));
-  localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
+function persist(){
+  saveItems(items).catch(err => {
+    console.error(err);
+    alert('保存に失敗しました。通信環境をご確認のうえ、もう一度お試しください。');
+  });
 }
 
 let items = [];
@@ -474,11 +393,15 @@ let viewYear, viewMonth; // 0-indexed month
 let selectedDate = null; // 'YYYY-MM-DD'
 let editingId = null;
 
-function init(){
-  seedIfNeeded();
-  seedSanrioIfNeeded();
-  seedTakaratomyIfNeeded();
-  items = loadItems();
+async function init(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:30px;text-align:center;color:#8a90a0;">読み込み中...</div>';
+  try{
+    items = await loadItems();
+  }catch(err){
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:30px;text-align:center;color:#e0392b;">データの読み込みに失敗しました。時間をおいて再読み込みしてください。</div>';
+    return;
+  }
   const SERIES_OPTIONS = ['サンリオキャラクターズ','たまごっち','パワーパフガールズ','カービィ','その他'];
   let migrated = false;
   items.forEach(it => {
@@ -488,7 +411,7 @@ function init(){
       migrated = true;
     }
   });
-  if(migrated) saveItems(items);
+  if(migrated) persist();
   const today = new Date();
   viewYear = today.getFullYear();
   viewMonth = today.getMonth();
@@ -618,18 +541,18 @@ function attachItemActionHandlers(container){
       const item = items.find(x => x.id === id);
       if(action === 'get'){
         item.obtained = !item.obtained;
-        saveItems(items);
+        persist();
         renderCalendar(); renderPanel();
       } else if(action === 'wish'){
         item.wishlist = !item.wishlist;
-        saveItems(items);
+        persist();
         renderCalendar(); renderPanel();
       } else if(action === 'edit'){
         openModal(item);
       } else if(action === 'delete'){
         if(confirm(`「${item.name}」を削除しますか？`)){
           items = items.filter(x => x.id !== id);
-          saveItems(items);
+          persist();
           renderCalendar(); renderPanel();
         }
       } else if(action === 'link'){
@@ -766,7 +689,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   } else {
     items.push({id: crypto.randomUUID(), ...data});
   }
-  saveItems(items);
+  persist();
   if(!undetermined){
     selectedDate = date;
     viewYear = new Date(date).getFullYear();
@@ -796,6 +719,47 @@ document.getElementById('todayBtn').addEventListener('click', () => {
   selectedDate = today.toISOString().slice(0,10);
   renderCalendar();
   renderPanel();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const data = JSON.stringify(items, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const today = new Date().toISOString().slice(0,10);
+  a.download = `gacha_calendar_export_${today}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let imported;
+    try{
+      imported = JSON.parse(reader.result);
+      if(!Array.isArray(imported)) throw new Error('not an array');
+    }catch(err){
+      alert('ファイルの読み込みに失敗しました。エクスポートで書き出したJSONファイルを選択してください。');
+      e.target.value = '';
+      return;
+    }
+    if(confirm(`${imported.length}件のデータを読み込みます。今表示している内容は全て上書きされます。よろしいですか？`)){
+      items = imported;
+      persist();
+      renderCalendar();
+      renderPanel();
+      alert('読み込みが完了しました。');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
 });
 
 init();
