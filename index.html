@@ -483,30 +483,49 @@ function allSeedBuilders(){
   return [].concat(buildSanrioData(), buildTakaratomyData());
 }
 
+// sourceId（安定ID）と maker::name の両方をキーとして持たせ、
+// sourceIdを持たない旧バージョンのデータとも突き合わせられるようにする
+function matchKeys(it){
+  return it.sourceId ? [it.sourceId, `${it.maker}::${it.name}`] : [`${it.maker}::${it.name}`];
+}
+function anyKeyIn(it, keySet){ return matchKeys(it).some(k => keySet.has(k)); }
+function addKeys(it, keySet){ matchKeys(it).forEach(k => keySet.add(k)); }
+
+// ユーザーが「削除」した取込データを再取得時に復活させないための除外リスト
+const EXCLUDED_KEY = 'gacha_bandai_excluded_v1';
+function loadExcluded(){
+  try{ return new Set(JSON.parse(localStorage.getItem(EXCLUDED_KEY) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function saveExcluded(set){
+  localStorage.setItem(EXCLUDED_KEY, JSON.stringify([...set]));
+}
+function markExcluded(it){
+  const excluded = loadExcluded();
+  addKeys(it, excluded);
+  saveExcluded(excluded);
+}
+
 function refreshLatestData(){
   const ok = confirm(
     '最新の取込データ（サンリオ・タカラトミーアーツ分）に更新します。\n\n' +
     '・自分で追加した商品や、編集した商品はそのまま残ります\n' +
+    '・自分で削除した商品は復活しません\n' +
     '・編集していない取込データは最新の内容に置き換わります\n' +
     '・古いサンプルデータは削除されます\n\n' +
     'よろしいですか？'
   );
   if(!ok) return;
 
-  // sourceId（安定ID）と maker::name の両方をキーとして持たせ、
-  // sourceIdを持たない旧バージョンのデータとも突き合わせられるようにする
-  const matchKeys = (it) => it.sourceId ? [it.sourceId, `${it.maker}::${it.name}`] : [`${it.maker}::${it.name}`];
-  const anyKeyIn = (it, keySet) => matchKeys(it).some(k => keySet.has(k));
-  const addKeys = (it, keySet) => matchKeys(it).forEach(k => keySet.add(k));
-
-  const fresh = allSeedBuilders();
+  const excluded = loadExcluded();
+  const fresh = allSeedBuilders().filter(it => !anyKeyIn(it, excluded));
   const freshKeys = new Set();
   fresh.forEach(it => addKeys(it, freshKeys));
 
   let current = loadItems();
   current = current.filter(it => !/^ガシャポン サンプル/.test(it.name));
   current = current.filter(it => {
-    const isKnownSeed = it.seedSource || anyKeyIn(it, freshKeys);
+    const isKnownSeed = it.seedSource || anyKeyIn(it, freshKeys) || anyKeyIn(it, excluded);
     return !(isKnownSeed && !it.userEdited);
   });
 
