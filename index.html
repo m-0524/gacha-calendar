@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ガチャガチャ発売日カレンダー（バンダイ）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --blue:#1e6fd9;
+    --red:#e0392b;
+    --bg:#f4f6fb;
+    --card:#ffffff;
+    --border:#dfe3ec;
+    --text:#2b2f38;
+    --muted:#8a90a0;
+    --gold:#f5a623;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  header{
+    background:linear-gradient(90deg,var(--blue),var(--red));
+    color:#fff;
+    padding:16px 24px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  header .icon{
+    width:40px;height:40px;border-radius:50%;
+    background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;
+    flex-shrink:0;
+  }
+  header h1{font-size:18px;margin:0;font-weight:700;}
+  header .sub{font-size:12px;opacity:.9;margin-top:2px;}
+
+  .toolbar{
+    max-width:1100px;
+    margin:16px auto 0;
+    padding:0 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .month-nav{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:8px 14px;
+  }
+  .month-nav button{
+    border:none;background:none;font-size:16px;cursor:pointer;
+    color:var(--blue);padding:4px 8px;border-radius:6px;
+  }
+  .month-nav button:hover{background:#eef3fc;}
+  .month-nav .label{font-size:16px;font-weight:700;min-width:110px;text-align:center;}
+  .btn{
+    border:none;border-radius:8px;padding:9px 16px;
+    font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .btn-primary{background:var(--red);color:#fff;}
+  .btn-primary:hover{background:#c62a1e;}
+  .btn-outline{background:#fff;border:1px solid var(--border);color:var(--text);}
+  .btn-outline:hover{background:#f0f2f7;}
+
+  .layout{
+    max-width:1100px;margin:16px auto 60px;padding:0 16px;
+    display:grid;grid-template-columns:1fr 320px;gap:18px;
+  }
+  @media (max-width:820px){ .layout{grid-template-columns:1fr;} }
+
+  .calendar{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;
+  }
+  .weekdays{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    background:#f0f2f7;
+    font-size:12px;font-weight:700;color:var(--muted);
+  }
+  .weekdays div{padding:8px 0;text-align:center;}
+  .weekdays div:first-child{color:var(--red);}
+  .weekdays div:last-child{color:var(--blue);}
+  .grid{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    grid-auto-rows:104px;
+  }
+  .cell{
+    border-right:1px solid var(--border);
+    border-bottom:1px solid var(--border);
+    padding:6px;
+    position:relative;
+    cursor:pointer;
+    overflow:hidden;
+    transition:background .1s;
+  }
+  .cell:hover{background:#f7f9fd;}
+  .cell.other-month{background:#fafafc;color:#c7cad4;}
+  .cell.today{background:#fff6e6;}
+  .cell.selected{outline:2px solid var(--blue);outline-offset:-2px;}
+  .cell .date-num{font-size:12px;font-weight:700;}
+  .cell.today .date-num{
+    background:var(--red);color:#fff;border-radius:50%;
+    width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .thumbs{
+    display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;
+  }
+  .thumbs img{
+    width:26px;height:26px;object-fit:cover;border-radius:4px;
+    border:1px solid var(--border);background:#fff;
+  }
+  .thumbs img.obtained{filter:grayscale(1);opacity:.6;}
+  .thumbs .more{
+    font-size:10px;color:var(--muted);align-self:center;
+  }
+  .wish-dot{
+    position:absolute;top:4px;right:4px;color:var(--gold);font-size:12px;
+  }
+
+  .panel{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:12px;padding:16px;height:fit-content;
+    position:sticky;top:16px;
+  }
+  .panel h2{font-size:14px;margin:0 0 4px;}
+  .panel .panel-date{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .item-card{
+    display:flex;gap:10px;border:1px solid var(--border);
+    border-radius:10px;padding:10px;margin-bottom:10px;
+    transition:opacity .15s, background .15s;
+  }
+  .item-card.obtained{
+    opacity:.55;background:#f5f5f5;
+  }
+  .item-card img{
+    width:64px;height:64px;object-fit:cover;border-radius:8px;
+    background:#f0f2f7;flex-shrink:0;
+  }
+  .item-card.obtained img{filter:grayscale(1);}
+  .item-info{flex:1;min-width:0;}
+  .item-info .name{font-size:13px;font-weight:700;margin-bottom:2px;
+    display:flex;align-items:center;gap:4px;}
+  .item-info .series{font-size:11px;color:var(--muted);margin-bottom:2px;}
+  .item-info .price{font-size:12px;color:var(--red);font-weight:700;}
+  .item-actions{display:flex;gap:6px;margin-top:6px;}
+  .item-actions button{
+    font-size:11px;border:none;background:#f0f2f7;border-radius:6px;
+    padding:3px 8px;cursor:pointer;color:var(--text);
+  }
+  .item-actions button:hover{background:#e4e8f2;}
+  .star-btn{border:none;background:none;cursor:pointer;font-size:13px;color:#ccc;}
+  .star-btn.active{color:var(--gold);}
+  .get-btn{border:none;background:none;cursor:pointer;font-size:13px;color:#ccc;}
+  .get-btn.active{color:#2a9d5c;}
+  .empty-note{font-size:12px;color:var(--muted);text-align:center;padding:20px 0;}
+
+  /* modal */
+  .overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+    align-items:center;justify-content:center;z-index:50;padding:16px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:#fff;border-radius:14px;padding:22px;width:100%;max-width:420px;
+    max-height:90vh;overflow-y:auto;
+  }
+  .modal h3{margin:0 0 14px;font-size:16px;}
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;
+  }
+  .field input[type=text],.field input[type=date],.field input[type=number],
+  .field select,.field textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+    font-size:13px;font-family:inherit;
+  }
+  .field textarea{resize:vertical;min-height:50px;}
+  .img-preview{
+    width:80px;height:80px;object-fit:cover;border-radius:8px;
+    border:1px solid var(--border);margin-top:6px;background:#f0f2f7;
+  }
+  .checkbox-row{display:flex;align-items:center;gap:6px;font-size:13px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+  .fab{
+    position:fixed;right:24px;bottom:24px;
+    width:52px;height:52px;border-radius:50%;
+    background:var(--red);color:#fff;border:none;font-size:26px;
+    box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;
+    z-index:40;
+  }
+  .fab:hover{background:#c62a1e;}
+
+  .undetermined-wrap{
+    max-width:1100px;margin:0 auto 60px;padding:0 16px;
+  }
+  .undetermined-box{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:12px;padding:16px;
+  }
+  .undetermined-box h2{font-size:14px;margin:0 0 12px;}
+  .undetermined-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="icon"><img src="data:image/png;base64,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" alt="" style="width:100%;height:100%;object-fit:contain;"></div>
+  <div>
+    <h1>ガチャガチャ発売日カレンダー</h1>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="month-nav">
+    <button id="prevMonth">◀</button>
+    <div class="label" id="monthLabel"></div>
+    <button id="nextMonth">▶</button>
+  </div>
+  <div>
+    <button class="btn btn-outline" id="todayBtn">今日</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="calendar">
+    <div class="weekdays">
+      <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="panel">
+    <h2 id="panelTitle">日付を選択してください</h2>
+    <div class="panel-date" id="panelDate"></div>
+    <div id="panelList"></div>
+    <button class="btn btn-primary" style="width:100%" id="addForSelected">＋ この日に追加</button>
+  </div>
+</div>
+
+<div class="undetermined-wrap">
+  <div class="undetermined-box">
+    <h2>発売日未定（<span id="undeterminedMonthLabel"></span>・月のみ判明分）</h2>
+    <div class="undetermined-grid" id="undeterminedList"></div>
+  </div>
+</div>
+
+<button class="fab" id="fabAdd" title="商品を追加">＋</button>
+
+<!-- Add/Edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">商品を追加</h3>
+    <div class="field">
+      <label>商品名</label>
+      <input type="text" id="f-name" placeholder="例：カプセルフィギュア ○○シリーズ">
+    </div>
+    <div class="field">
+      <label>シリーズ名</label>
+      <select id="f-series">
+        <option value="サンリオキャラクターズ">サンリオキャラクターズ</option>
+        <option value="たまごっち">たまごっち</option>
+        <option value="パワーパフガールズ">パワーパフガールズ</option>
+        <option value="カービィ">カービィ</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>メーカー</label>
+      <select id="f-maker">
+        <option value="bandai">バンダイ</option>
+        <option value="takaratomy">タカラトミーアーツ</option>
+        <option value="ip4">IP4（アイピーフォー）</option>
+        <option value="benelic">ベネリック</option>
+        <option value="yumeya">夢屋</option>
+        <option value="yell">YELL</option>
+        <option value="keicompany">ケイカンパニー</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field checkbox-row">
+      <input type="checkbox" id="f-undetermined">
+      <label style="margin:0" for="f-undetermined">発売日未定（発売月のみ分かっている）</label>
+    </div>
+    <div class="field" id="f-date-field">
+      <label>発売日</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field" id="f-month-field" style="display:none">
+      <label>発売月</label>
+      <input type="month" id="f-month">
+    </div>
+    <div class="field">
+      <label>価格（円）</label>
+      <input type="number" id="f-price" placeholder="例：400">
+    </div>
+    <div class="field">
+      <label>画像URL（貼り付け）</label>
+      <input type="text" id="f-imageurl" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label>画像ファイルを選択（端末から）</label>
+      <input type="file" id="f-imagefile" accept="image/*">
+      <img id="imgPreview" class="img-preview" style="display:none">
+    </div>
+    <div class="field">
+      <label>商品ページリンク</label>
+      <input type="text" id="f-link" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label>メモ</label>
+      <textarea id="f-memo" placeholder="全N種、コンプ価格など"></textarea>
+    </div>
+    <div class="field checkbox-row">
+      <input type="checkbox" id="f-wish">
+      <label style="margin:0" for="f-wish">★ ウィッシュリストに入れる</label>
+    </div>
+    <div class="field checkbox-row">
+      <input type="checkbox" id="f-obtained">
+      <label style="margin:0" for="f-obtained">✔ ゲット済み</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelBtn">キャンセル</button>
+      <button class="btn btn-primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'gacha_bandai_items_v1';
+const SEED_KEY = 'gacha_bandai_seeded_v1';
+
+// プレースホルダー画像（カプセルトイのシンプルなSVGアイコン）。実データ追加時に画像URLで上書きしてください。
+const PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+  <rect width="120" height="120" fill="#eef1f8"/>
+  <circle cx="60" cy="46" r="30" fill="#ffffff" stroke="#1e6fd9" stroke-width="3"/>
+  <path d="M30 46 a30 30 0 0 0 60 0 Z" fill="#e0392b"/>
+  <circle cx="60" cy="46" r="30" fill="none" stroke="#c7cad4" stroke-width="2"/>
+  <text x="60" y="100" font-size="12" text-anchor="middle" fill="#8a90a0" font-family="sans-serif">No Image</text>
+</svg>`);
+
+const MAKERS = {
+  bandai: {label:'バンダイ', color:'#1e6fd9'},
+  takaratomy: {label:'タカラトミーアーツ', color:'#c02030'},
+  ip4: {label:'IP4（アイピーフォー）', color:'#8e44ad'},
+  benelic: {label:'ベネリック', color:'#e67e22'},
+  yumeya: {label:'夢屋', color:'#2a9d5c'},
+  yell: {label:'YELL', color:'#d6336c'},
+  keicompany: {label:'ケイカンパニー', color:'#6d4c41'},
+  other: {label:'その他', color:'#8a90a0'}
+};
+function makerInfo(key){ return MAKERS[key] || MAKERS.other; }
+
+function loadItems(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveItems(items){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function seedIfNeeded(){
+  if(localStorage.getItem(SEED_KEY)) return;
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth();
+  const d = (day) => new Date(y, m, day).toISOString().slice(0,10);
+  const sample = [
+    {
+      id: crypto.randomUUID(),
+      name: 'ガシャポン サンプルフィギュア A',
+      series: 'サンプルコレクション Vol.1',
+      maker: 'bandai',
+      releaseDate: d(5),
+      price: 400,
+      imageUrl: PLACEHOLDER_IMG,
+      link: '',
+      memo: '全6種（サンプルデータ・要編集）',
+      wishlist: false
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'ガシャポン サンプルマスコット B',
+      series: 'サンプルマスコットシリーズ',
+      maker: 'bandai',
+      releaseDate: d(12),
+      price: 300,
+      imageUrl: PLACEHOLDER_IMG,
+      link: '',
+      memo: '全8種+シークレット（サンプルデータ）',
+      wishlist: true
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'ガシャポン サンプルミニチュア C',
+      series: 'サンプルミニチュアコレクション',
+      maker: 'bandai',
+      releaseDate: d(20),
+      price: 500,
+      imageUrl: PLACEHOLDER_IMG,
+      link: '',
+      memo: 'コンプ価格 約3,000円（サンプルデータ）',
+      wishlist: false
+    }
+  ];
+  const items = loadItems();
+  saveItems(items.concat(sample));
+  localStorage.setItem(SEED_KEY, '1');
+}
+
+// gashapon.jp「サンリオキャラクターズ」ページより2026年7月掲載分を取り込み
+// 出典: https://gashapon.jp/sanrio-characters/
+// 注意: サイト上の発売日表記は「N週目より順次発売予定」の週単位のみで正確な日付は不明。
+//       1週目→1日, 2週目→8日, 3週目→15日, 4週目→22日, 5週目→29日 として仮の日付を割り当てている（要確認）。
+const SEED_KEY_SANRIO_V1 = 'gacha_bandai_seeded_sanrio_v1';
+function seedSanrioIfNeeded(){
+  if(localStorage.getItem(SEED_KEY_SANRIO_V1)) return;
+
+  const sampleNames = ['ガシャポン サンプルフィギュア A','ガシャポン サンプルマスコット B','ガシャポン サンプルミニチュア C'];
+  let items = loadItems().filter(it => !sampleNames.includes(it.name));
+
+  const src = 'https://gashapon.jp/sanrio-characters/';
+  const weekDate = (w) => `2026-07-${String((w-1)*7+1).padStart(2,'0')}`;
+  const real = [
+    { name:'カラともマスコット', week:5, price:400, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item090/img_dp.jpg' },
+    { name:'ミニ貯金箱 夢みるエンジェルver.', week:4, price:500, kinds:3, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item085/img_dp.jpg' },
+    { name:'ぱんだっこフィギュア', week:4, price:300, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item094/img_dp.jpg' },
+    { name:'フロッキーマスコットスイング～かわいいだけじゃない～', week:4, price:300, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item093/img_dp.jpg' },
+    { name:'ななほしカラフルマルチチャーム', week:4, price:300, kinds:7, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item098/img_dp.jpg' },
+    { name:'きらきらアソートコレクション', week:3, price:400, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item096/img_dp.jpg' },
+    { name:'CAPSULE FAN サンリオキャラクターズ2', week:3, price:500, kinds:4, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item095/img_dp.jpg' },
+    { name:'シュガーバニーズ ふわふわめじるしアクセサリー', week:2, price:300, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item097/img_dp.jpg' },
+    { name:'ぷっくりクリアバッグ', week:2, price:400, kinds:5, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item091/img_dp.jpg' },
+    { name:'豆ガシャ本 サンリオキャラクターズ×朝日文庫', week:1, price:500, kinds:8, img:'https://gashapon.jp/sanrio-characters/_assets/images/item/item092/img_dp.jpg' }
+  ].map(x => ({
+    id: crypto.randomUUID(),
+    name: x.name,
+    series: 'サンリオキャラクターズ',
+    maker: 'bandai',
+    releaseDate: weekDate(x.week),
+    price: x.price,
+    imageUrl: x.img,
+    link: src,
+    memo: `全${x.kinds}種／2026年7月${x.week}週目より順次発売予定（正確な日付は要確認）`,
+    wishlist: false
+  }));
+
+  saveItems(items.concat(real));
+  localStorage.setItem(SEED_KEY_SANRIO_V1, '1');
+}
+
+// takaratomy-arts.co.jp「サンリオキャラクターズ」スペシャルサイトより取り込み
+// 出典: https://www.takaratomy-arts.co.jp/specials/sanrio/
+// 注意: サイト上の発売日表記は「発売時期：2026年◯月」という月単位のみで日付は不明。
+//       releaseDateはnull、releaseMonthに'YYYY-MM'を設定し「発売日未定」枠に表示。
+//       日付が判明したら編集モーダルの「発売日未定」チェックを外して発売日を入力すると
+//       カレンダーの該当セルに自動的に反映される。
+//       商品個別ページのリンクは取得できなかったため、一覧ページURLを設定している。
+//       2026-07-14時点で直近〜未来分（2026年7月・8月分）のみ取り込み。
+const SEED_KEY_TAKARATOMY_V1 = 'gacha_bandai_seeded_takaratomy_v1';
+function seedTakaratomyIfNeeded(){
+  if(localStorage.getItem(SEED_KEY_TAKARATOMY_V1)) return;
+
+  const src = 'https://www.takaratomy-arts.co.jp/specials/sanrio/';
+  const imgBase = 'https://www.takaratomy-arts.co.jp/upfiles/products/';
+  const raw = [
+    { name:'おねがいアイプリ × サンリオキャラクターズ きらきらオーロラ アクリルスタンド', price:440, month:'2026-08', img:'Y111112_s.jpg' },
+    { name:'サンリオキャラクターズ ツインチャーム おばけごっこ', price:429, month:'2026-08', img:'Y111068_s.jpg' },
+    { name:'サンリオキャラクターズ しょくぱんず', price:300, month:'2026-07', img:'Y905452_s.jpg' },
+    { name:'サンリオキャラクターズ もこもこパンダフロッキーマスコット', price:400, month:'2026-07', img:'Y903649_s.jpg' },
+    { name:'サンリオキャラクターズ くるくるヘアカーラーフィギュア', price:300, month:'2026-07', img:'Y905940_s.jpg' },
+    { name:'おねがいアイプリ アクリルカードキーホルダー サンリオキャラクターズ モデル', price:0, month:'2026-07', img:'Y187490_s.jpg' },
+    { name:'おねがいアイプリ でふぉめぬいぐるみマスコット サンリオキャラクターズ モデル', price:0, month:'2026-07', img:'Y187483_s.jpg' },
+    { name:'サンリオキャラクターズ バレエリボンフィギュア2', price:300, month:'2026-07', img:'Y902116_s.jpg' },
+    { name:'サンリオキャラクターズ きらきらこんぺいとうチャーム', price:300, month:'2026-07', img:'Y902970_s.jpg' },
+    { name:'サンリオキャラクターズ ぬいぐるみといっしょフィギュア2', price:300, month:'2026-07', img:'Y902963_s.jpg' },
+    { name:'サンリオキャラクターズ／ちょっこりさん／ キーチャームマスコット（クローバー）／ポムポムプリン', price:1980, month:'2026-07', img:'Y182846_s.jpg' },
+    { name:'サンリオキャラクターズ／ちょっこりさん／ キーチャームマスコット（クローバー）／ポチャッコ', price:1980, month:'2026-07', img:'Y182839_s.jpg' },
+    { name:'サンリオキャラクターズ／ちょっこりさん／ キーチャームマスコット（クローバー）／シナモロール', price:1980, month:'2026-07', img:'Y182822_s.jpg' },
+    { name:'サンリオキャラクターズ／ちょっこりさん／ キーチャームマスコット（クローバー）／ウサハナ', price:1980, month:'2026-07', img:'Y182853_s.jpg' },
+    { name:'サンリオキャラクターズ／ちょっこりさん／ キーチャームマスコット（クローバー）／ハローキティ', price:1980, month:'2026-07', img:'Y182815_s.jpg' },
+    { name:'サンリオキャラクターズ きゃらくたぶるステッカーズ Vol.7', price:198, month:'2026-07', img:'Y111167_s.jpg' },
+    { name:'サンリオキャラクターズ きゃらラバ！ ブレスレット にじほしキャンディ', price:418, month:'2026-07', img:'Y111051_s.jpg' }
+  ].map(x => ({
+    id: crypto.randomUUID(),
+    name: x.name,
+    series: 'サンリオキャラクターズ',
+    maker: 'takaratomy',
+    releaseDate: null,
+    releaseMonth: x.month,
+    price: x.price,
+    imageUrl: imgBase + x.img,
+    link: src,
+    memo: `発売時期表記のみ（${x.month.replace('-','年')}月・日付未定）`,
+    wishlist: false
+  }));
+
+  const items = loadItems();
+  saveItems(items.concat(raw));
+  localStorage.setItem(SEED_KEY_TAKARATOMY_V1, '1');
+}
+
+let items = [];
+let viewYear, viewMonth; // 0-indexed month
+let selectedDate = null; // 'YYYY-MM-DD'
+let editingId = null;
+
+function init(){
+  seedIfNeeded();
+  seedSanrioIfNeeded();
+  seedTakaratomyIfNeeded();
+  items = loadItems();
+  const SERIES_OPTIONS = ['サンリオキャラクターズ','たまごっち','パワーパフガールズ','カービィ','その他'];
+  let migrated = false;
+  items.forEach(it => {
+    if(!it.maker){ it.maker = 'bandai'; migrated = true; }
+    if(!SERIES_OPTIONS.includes(it.series)){
+      it.series = (it.series || '').includes('サンリオ') ? 'サンリオキャラクターズ' : 'その他';
+      migrated = true;
+    }
+  });
+  if(migrated) saveItems(items);
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  selectedDate = today.toISOString().slice(0,10);
+  renderCalendar();
+  renderPanel();
+}
+
+function toDateStr(y,m,d){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function renderCalendar(){
+  document.getElementById('monthLabel').textContent = `${viewYear}年 ${viewMonth+1}月`;
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  const cells = [];
+  // leading (prev month)
+  for(let i=0;i<startWeekday;i++){
+    const dayNum = daysInPrevMonth - startWeekday + i + 1;
+    let y = viewYear, m = viewMonth - 1;
+    if(m<0){m=11;y--;}
+    cells.push({y,m,d:dayNum,other:true});
+  }
+  // this month
+  for(let d=1; d<=daysInMonth; d++){
+    cells.push({y:viewYear,m:viewMonth,d,other:false});
+  }
+  // trailing (next month) to fill full weeks
+  while(cells.length % 7 !== 0){
+    const idx = cells.length - (startWeekday + daysInMonth);
+    let y = viewYear, m = viewMonth + 1;
+    if(m>11){m=0;y++;}
+    cells.push({y,m,d:idx+1,other:true});
+  }
+
+  cells.forEach(c => {
+    const dateStr = toDateStr(c.y, c.m, c.d);
+    const div = document.createElement('div');
+    div.className = 'cell' + (c.other ? ' other-month' : '') +
+      (dateStr === todayStr ? ' today' : '') +
+      (dateStr === selectedDate ? ' selected' : '');
+    div.dataset.date = dateStr;
+
+    const dayItems = items.filter(it => it.releaseDate === dateStr);
+    const hasWish = dayItems.some(it => it.wishlist);
+
+    div.innerHTML = `
+      <span class="date-num">${c.d}</span>
+      ${hasWish ? '<span class="wish-dot">★</span>' : ''}
+      <div class="thumbs">
+        ${dayItems.slice(0,3).map(it => `<img class="${it.obtained ? 'obtained':''}" style="border-color:${makerInfo(it.maker).color}" src="${it.imageUrl || PLACEHOLDER_IMG}" referrerpolicy="no-referrer" title="${escapeHtml(it.name)}">`).join('')}
+        ${dayItems.length > 3 ? `<span class="more">+${dayItems.length-3}</span>` : ''}
+      </div>
+    `;
+    div.addEventListener('click', () => {
+      selectedDate = dateStr;
+      if(c.other){
+        viewYear = c.y; viewMonth = c.m;
+        renderCalendar();
+      } else {
+        document.querySelectorAll('.cell.selected').forEach(el=>el.classList.remove('selected'));
+        div.classList.add('selected');
+      }
+      renderPanel();
+    });
+    grid.appendChild(div);
+  });
+
+  renderUndetermined();
+}
+
+function renderPanel(){
+  const list = document.getElementById('panelList');
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  document.getElementById('panelTitle').textContent = '発売リスト';
+  document.getElementById('panelDate').textContent =
+    `${dateObj.getFullYear()}年${dateObj.getMonth()+1}月${dateObj.getDate()}日（${'日月火水木金土'[dateObj.getDay()]}）`;
+
+  const dayItems = items.filter(it => it.releaseDate === selectedDate);
+  if(dayItems.length === 0){
+    list.innerHTML = '<div class="empty-note">この日の発売情報はありません</div>';
+    return;
+  }
+  list.innerHTML = dayItems.map(itemCardHtml).join('');
+  attachItemActionHandlers(list);
+}
+
+function itemCardHtml(it){
+  return `
+    <div class="item-card ${it.obtained ? 'obtained':''}" style="border-left:4px solid ${makerInfo(it.maker).color}">
+      <img src="${it.imageUrl || PLACEHOLDER_IMG}" referrerpolicy="no-referrer">
+      <div class="item-info">
+        <div class="name">
+          ${escapeHtml(it.name)}
+          <button class="get-btn ${it.obtained ? 'active':''}" data-id="${it.id}" data-action="get" title="ゲット済み">✔</button>
+          <button class="star-btn ${it.wishlist ? 'active':''}" data-id="${it.id}" data-action="wish">★</button>
+        </div>
+        <div class="series" style="color:${makerInfo(it.maker).color};font-weight:700">${escapeHtml(makerInfo(it.maker).label)}</div>
+        <div class="series">${escapeHtml(it.series || '')}</div>
+        ${it.price ? `<div class="price">¥${Number(it.price).toLocaleString()}</div>` : ''}
+        ${it.releaseMonth && !it.releaseDate ? `<div class="series">発売月：${escapeHtml(it.releaseMonth)}（日付未定）</div>` : ''}
+        ${it.memo ? `<div class="series">${escapeHtml(it.memo)}</div>` : ''}
+        <div class="item-actions">
+          ${it.link ? `<button data-action="link" data-id="${it.id}">リンク</button>` : ''}
+          <button data-action="edit" data-id="${it.id}">編集</button>
+          <button data-action="delete" data-id="${it.id}">削除</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function attachItemActionHandlers(container){
+  container.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      const item = items.find(x => x.id === id);
+      if(action === 'get'){
+        item.obtained = !item.obtained;
+        saveItems(items);
+        renderCalendar(); renderPanel();
+      } else if(action === 'wish'){
+        item.wishlist = !item.wishlist;
+        saveItems(items);
+        renderCalendar(); renderPanel();
+      } else if(action === 'edit'){
+        openModal(item);
+      } else if(action === 'delete'){
+        if(confirm(`「${item.name}」を削除しますか？`)){
+          items = items.filter(x => x.id !== id);
+          saveItems(items);
+          renderCalendar(); renderPanel();
+        }
+      } else if(action === 'link'){
+        window.open(item.link, '_blank');
+      }
+    });
+  });
+}
+
+function renderUndetermined(){
+  document.getElementById('undeterminedMonthLabel').textContent = `${viewYear}年${viewMonth+1}月`;
+  const monthStr = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
+  const list = document.getElementById('undeterminedList');
+  const undeterminedItems = items.filter(it => !it.releaseDate && it.releaseMonth === monthStr);
+  if(undeterminedItems.length === 0){
+    list.innerHTML = '<div class="empty-note">この月の発売日未定商品はありません</div>';
+    return;
+  }
+  list.innerHTML = undeterminedItems.map(itemCardHtml).join('');
+  attachItemActionHandlers(list);
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// --- modal ---
+const overlay = document.getElementById('overlay');
+let pendingImageData = null;
+
+function openModal(item){
+  editingId = item ? item.id : null;
+  document.getElementById('modalTitle').textContent = item ? '商品を編集' : '商品を追加';
+  document.getElementById('f-name').value = item ? item.name : '';
+  document.getElementById('f-series').value = item ? item.series : 'サンリオキャラクターズ';
+  document.getElementById('f-maker').value = item ? (item.maker || 'bandai') : 'bandai';
+  const isUndetermined = !!(item && !item.releaseDate && item.releaseMonth);
+  document.getElementById('f-undetermined').checked = isUndetermined;
+  document.getElementById('f-date').value = item ? (item.releaseDate || '') : selectedDate;
+  document.getElementById('f-month').value = item && item.releaseMonth ? item.releaseMonth : '';
+  document.getElementById('f-date-field').style.display = isUndetermined ? 'none' : 'block';
+  document.getElementById('f-month-field').style.display = isUndetermined ? 'block' : 'none';
+  document.getElementById('f-price').value = item ? item.price : '';
+  document.getElementById('f-imageurl').value = item && item.imageUrl && !item.imageUrl.startsWith('data:') ? item.imageUrl : '';
+  document.getElementById('f-link').value = item ? item.link : '';
+  document.getElementById('f-memo').value = item ? item.memo : '';
+  document.getElementById('f-wish').checked = item ? !!item.wishlist : false;
+  document.getElementById('f-obtained').checked = item ? !!item.obtained : false;
+  document.getElementById('f-imagefile').value = '';
+  pendingImageData = item && item.imageUrl && item.imageUrl.startsWith('data:') ? item.imageUrl : null;
+  const preview = document.getElementById('imgPreview');
+  if(item && item.imageUrl){
+    preview.src = item.imageUrl;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+  overlay.classList.add('show');
+}
+function closeModal(){
+  overlay.classList.remove('show');
+  editingId = null;
+  pendingImageData = null;
+}
+
+document.getElementById('f-undetermined').addEventListener('change', (e) => {
+  document.getElementById('f-date-field').style.display = e.target.checked ? 'none' : 'block';
+  document.getElementById('f-month-field').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('fabAdd').addEventListener('click', () => openModal(null));
+document.getElementById('addForSelected').addEventListener('click', () => openModal(null));
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+
+document.getElementById('f-imagefile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImageData = reader.result;
+    const preview = document.getElementById('imgPreview');
+    preview.src = pendingImageData;
+    preview.style.display = 'block';
+    document.getElementById('f-imageurl').value = '';
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('f-imageurl').addEventListener('input', (e) => {
+  if(e.target.value){
+    pendingImageData = null;
+    const preview = document.getElementById('imgPreview');
+    preview.src = e.target.value;
+    preview.style.display = 'block';
+  }
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){
+    alert('商品名は必須です');
+    return;
+  }
+  const undetermined = document.getElementById('f-undetermined').checked;
+  const date = undetermined ? '' : document.getElementById('f-date').value;
+  const month = undetermined ? document.getElementById('f-month').value : '';
+  if(undetermined && !month){
+    alert('発売月を入力してください');
+    return;
+  }
+  if(!undetermined && !date){
+    alert('発売日を入力してください（未定の場合は「発売日未定」にチェック）');
+    return;
+  }
+  const imageUrl = pendingImageData || document.getElementById('f-imageurl').value.trim() || '';
+
+  const data = {
+    name,
+    series: document.getElementById('f-series').value.trim(),
+    maker: document.getElementById('f-maker').value,
+    releaseDate: undetermined ? null : date,
+    releaseMonth: undetermined ? month : null,
+    price: document.getElementById('f-price').value ? Number(document.getElementById('f-price').value) : null,
+    imageUrl,
+    link: document.getElementById('f-link').value.trim(),
+    memo: document.getElementById('f-memo').value.trim(),
+    wishlist: document.getElementById('f-wish').checked,
+    obtained: document.getElementById('f-obtained').checked
+  };
+
+  if(editingId){
+    const idx = items.findIndex(x => x.id === editingId);
+    items[idx] = {...items[idx], ...data};
+  } else {
+    items.push({id: crypto.randomUUID(), ...data});
+  }
+  saveItems(items);
+  if(!undetermined){
+    selectedDate = date;
+    viewYear = new Date(date).getFullYear();
+    viewMonth = new Date(date).getMonth();
+  } else {
+    const [my, mm] = month.split('-').map(Number);
+    viewYear = my;
+    viewMonth = mm - 1;
+  }
+  closeModal();
+  renderCalendar();
+  renderPanel();
+});
+
+document.getElementById('prevMonth').addEventListener('click', () => {
+  viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;}
+  renderCalendar();
+});
+document.getElementById('nextMonth').addEventListener('click', () => {
+  viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;}
+  renderCalendar();
+});
+document.getElementById('todayBtn').addEventListener('click', () => {
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+  selectedDate = today.toISOString().slice(0,10);
+  renderCalendar();
+  renderPanel();
+});
+
+init();
+</script>
+</body>
+</html>
